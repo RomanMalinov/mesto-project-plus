@@ -7,7 +7,7 @@ mongoose.connect("mongodb://localhost:27017/mydb");
 const PORT = 3000;
 
 app.get("/", (req, res) => {
-  res.status(200).json("test")
+  res.status(200).json("tes  334t")
 });
 
 app.listen(PORT, () => {
