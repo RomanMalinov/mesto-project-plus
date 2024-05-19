@@ -6,7 +6,6 @@ interface ICard {
   owner: mongoose.Types.ObjectId;
   likes: [mongoose.Types.ObjectId];
   createdAt: Date;
-
 }
 
 const cardSchema = new mongoose.Schema<ICard>({

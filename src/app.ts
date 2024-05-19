@@ -1,22 +1,28 @@
-import express from "express";
+import express, { Response, Request } from "express";
 import mongoose from "mongoose";
 import userRouter from "./routes/user";
+import cardsRouter from "./routes/card";
+import { MONGO_URL, PORT } from "./constants/constants"
+import { IRequest } from "types/types";
 
 const app = express();
 app.use(express.json());
-const PORT = 3000;
+mongoose.connect(MONGO_URL)
+  .then(() => {
+    console.log("База данных MongoDB подключена")
+  })
+  .catch((err) => {
+    console.log(err)
+  });
 
-mongoose.connect("mongodb://localhost:27017/mestodb");
-
-
-
-app.get("/", (req, res) => {
-  res.status(200).json("test")
+app.use((req: IRequest, res, next) => {
+  req.user = { _id: "6645d218622adfe094e388e8" };
+  next();
 });
 
-
 app.use(userRouter);
+app.use(cardsRouter);
 
 app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
+  console.log(`Сервер запущен на порту: ${PORT}`);
 });
