@@ -1,5 +1,6 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model } from 'mongoose';
 import validator from 'validator';
+import bcrypt from 'bcrypt';
 
 interface IUser {
   name: string,
@@ -7,6 +8,10 @@ interface IUser {
   avatar: string,
   email: string,
   password: string,
+}
+
+interface UserModel extends Model<IUser> {
+  findUserByCredentials: (email: string, password: string) => Promise<Document<unknown, any, IUser>>
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -48,4 +53,18 @@ const userSchema = new mongoose.Schema<IUser>(
   { versionKey: false },
 );
 
-export default mongoose.model<IUser>('user', userSchema);
+userSchema.static('findUserByCredentials', function findUserByCredentials(email: string, password: string) {
+  return this.findOne({ email }).then((user: IUser | null) => {
+    if (!user) {
+      return Promise.reject(new Error('Неправильные почта или пароль'));
+    }
+    return bcrypt.compare(password, user.password).then((matched) => {
+      if (!matched) {
+        return Promise.reject(new Error('Неправильные почта или пароль'));
+      }
+      return user;
+    });
+  });
+});
+
+export default mongoose.model<IUser, UserModel>('user', userSchema);
