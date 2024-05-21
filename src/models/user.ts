@@ -5,6 +5,8 @@ interface IUser {
   name: string,
   about: string,
   avatar: string,
+  email: string,
+  password: string,
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -23,11 +25,24 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     avatar: {
       type: String,
-      required: [true, 'Поле "avator" должно быть заполнено'],
+      required: [true, 'Поле "avatar" должно быть заполнено'],
       validate: {
         validator: (v: string) => validator.isURL(v),
         message: 'Некорректный URL',
       },
+    },
+    email: {
+      type: String,
+      required: [true, 'Поле "email" должно быть заполнено'],
+      unique: true,
+      validate: {
+        validator: (v: string) => validator.isEmail(v),
+        message: 'Некорректный email',
+      },
+    },
+    password: {
+      type: String,
+      required: [true, 'Поле "password" должно быть заполнено'],
     },
   },
   { versionKey: false },
