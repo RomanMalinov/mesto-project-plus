@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import User from '../models/user';
 import { IRequest } from '../types/types';
 
@@ -32,14 +33,15 @@ export const getUserById = (req: Request, res: Response) => User.findById(req.pa
   });
 
 export const createUser = (req: Request, res: Response) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
+  const { name, about, avatar, email, password } = req.body;
+  return bcrypt.hash(password, 10)
+    .then((hash) => User.create({ name, about, avatar, email, password: hash }))
     .then((user) => res.status(201).send({ data: user }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' });
       }
-      return res.status(500).send({ message: `Произошла ошибка: ${err}` });
+      return res.status(500).send({ message: `Произошла ошибка: ${err.message}` });
     });
 };
 
