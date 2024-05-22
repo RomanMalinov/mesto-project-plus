@@ -5,6 +5,8 @@ import userRouter from './routes/user';
 import cardsRouter from './routes/card';
 import { MONGO_URL, PORT } from './constants/constants';
 import { IRequest } from './types/types';
+import { login, createUser } from './controllers/user';
+import userAuth from './middlewares/auth';
 
 const app = express();
 
@@ -19,14 +21,11 @@ mongoose.connect(MONGO_URL)
     console.log(err);
   });
 
-app.use((req: IRequest, res, next) => {
-  req.user = { _id: '6645d218622adfe094e388e8' };
-  next();
-});
-
 app.use(userRouter);
 app.use(cardsRouter);
-
+app.post('/signin', login);
+app.post('/signup', createUser);
+app.use(userAuth);
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Запрашиваемый ресурс не найден' });
 });
