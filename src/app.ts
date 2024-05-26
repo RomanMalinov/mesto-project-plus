@@ -1,12 +1,16 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import helmet from 'helmet';
+import { errors } from 'celebrate';
 import userRouter from './routes/user';
 import cardsRouter from './routes/card';
 import { MONGO_URL, PORT } from './constants/constants';
 import { IRequest } from './types/types';
 import { login, createUser } from './controllers/user';
 import userAuth from './middlewares/auth';
+import { requestLogger, errorLogger } from './middlewares/logger';
+import { loginValidator, userCreationValidator } from './validator/validator';
+import errorHandlerMiddleware from './middlewares/errorHandlerMiddleware';
 
 const app = express();
 
@@ -21,11 +25,28 @@ mongoose.connect(MONGO_URL)
     console.log(err);
   });
 
+app.use(requestLogger);
+
+app.post('/signin', loginValidator, login);
+app.post('/signup', userCreationValidator, createUser);
+
+app.use(userAuth);
+
 app.use(userRouter);
 app.use(cardsRouter);
-app.post('/signin', login);
-app.post('/signup', createUser);
-app.use(userAuth);
+
+app.use(errorLogger);
+app.use(errors());
+app.use(errorHandlerMiddleware);
+// app.use((err, req, res, next) => {
+//   const { statusCode = 500, message } = err;
+//   res.status(statusCode).json({
+//     message: statusCode === 500
+//       ? 'На сервере произошла ошибка'
+//       : message
+//   });
+// });
+
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Запрашиваемый ресурс не найден' });
 });

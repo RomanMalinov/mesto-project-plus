@@ -20,7 +20,7 @@ const cardSchema = new mongoose.Schema<ICard>({
     type: String,
     required: [true, 'Поле "link" должно быть заполнено'],
     validate: {
-      validator: (v: string) => validator.isURL(v),
+      validator: (v: string) => /^(https?:\/\/(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9-]+\.[^\s]{2,})(\/[^\s]*)?$/.test(v),
       message: 'Некорректный URL',
     },
   },

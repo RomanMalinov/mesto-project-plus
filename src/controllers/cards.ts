@@ -1,75 +1,75 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import Card from '../models/card';
 import { IRequest } from '../types/types';
+import NotFoundError from '../errors/NotFoundError';
+import InvalidDataError from '../errors/InvalidDataError';
 
-export const getCards = (req: IRequest, res: Response) => Card.find({})
+export const getCards = (req: IRequest, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.status(200).send({ data: cards }))
-  .catch((err) => res.status(500).send({ message: `Произошла ошибка: ${err}` }));
+  .catch(next);
 
-export const deleteCardById = (req: IRequest, res: Response) => {
+export const deleteCardById = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  Card.findByIdAndDelete(cardId).orFail()
+  Card.findByIdAndDelete(cardId)
+    .orFail(() => new NotFoundError('Карточка с указанным _id не найдена'))
     .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(404).send({ message: 'Карточка с указанным _id не найдена' });
-      } if (err instanceof mongoose.Error.CastError) {
-        return res.status(400).send({ message: 'Переданы некорректные данные для удаления карточки' });
+      if (err instanceof mongoose.Error.CastError) {
+        next(new InvalidDataError('Переданы некорректные данные для удаления карточки'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({ message: `Произошла ошибка: ${err.message}` });
     });
 };
 
-export const createCard = (req: IRequest, res: Response) => {
+export const createCard = (req: IRequest, res: Response, next: NextFunction) => {
   const { name, link } = req.body;
   Card.create({ name, link, owner: req.user?._id })
     .then((card) => res.status(201).send(card))
     .catch((err) => {
       if (err instanceof mongoose.Error.ValidationError) {
-        res.status(400).send({ message: 'Переданы некорректные данные при создании карточки' });
+        next(new InvalidDataError('Переданы некорректные данные при создании карточки'));
       } else {
-        res.status(500).send({ message: 'Ошибка по умолчанию' });
+        next(err);
       }
     });
 };
 
-export const likeCard = (req: IRequest & { params: { cardId: string } }, res: Response) => {
+export const likeCard = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
   if (!mongoose.Types.ObjectId.isValid(cardId)) {
-    return res.status(400).send({ message: 'Переданы некорректные данные для постановки лайка' });
+    next(new InvalidDataError('Переданы некорректные данные для постановки лайка'));
   }
-  return Card.findByIdAndUpdate(
-    cardId,
-    { $addToSet: { likes: req.user?._id } },
-    { new: true },
-  )
-    .orFail()
+  Card.findByIdAndUpdate(cardId, { $addToSet: { likes: req.user?._id } }, { new: true })
+    .orFail(() => new NotFoundError('Передан несуществующий _id карточки'))
     .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(404).send({ message: 'Передан несуществующий _id карточки' });
+        next(new NotFoundError('Передан несуществующий _id карточки'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({ message: `Произошла ошибка: ${err.message}` });
     });
 };
 
-export const dislikeCard = (req: IRequest, res: Response) => {
+export const dislikeCard = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
   if (!mongoose.Types.ObjectId.isValid(cardId)) {
-    return res.status(400).send({ message: 'Переданы некорректные данные для снятия лайка' });
+    throw new InvalidDataError('Переданы некорректные данные для снятия лайка');
   }
   return Card.findByIdAndUpdate(
     cardId,
     { $pull: { likes: req.user?._id } },
     { new: true },
   )
-    .orFail()
+    .orFail(() => new NotFoundError('Передан несуществующий _id карточки'))
     .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(404).send({ message: 'Передан несуществующий _id карточки' });
+        next(new NotFoundError('Передан несуществующий _id карточки'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({ message: `Произошла ошибка: ${err.message}` });
     });
 };

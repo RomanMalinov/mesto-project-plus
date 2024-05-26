@@ -1,97 +1,95 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/user';
 import { IRequest } from '../types/types';
+import NotFoundError from '../errors/NotFoundError';
+import InvalidDataError from '../errors/InvalidDataError';
+import UnauthorizedError from '../errors/UnauthorizedError';
 
-export const getUsers = (req: Request, res: Response) => User.find({})
-  .then((users) => {
-    if (!users || users.length === 0) {
-      return res.status(404).send({ message: 'Пользователи не найдены' });
-    }
-    return res.status(200).send({ data: users });
-  })
-  .catch((err) => {
-    if (err instanceof mongoose.Error.CastError) {
-      return res.status(400).send({ message: 'Переданы некорректные данные' });
-    }
-    return res.status(500).send({ message: `Произошла ошибка: ${err}` });
-  });
+export const getUsers = (req: Request, res: Response, next: NextFunction) => {
+  User.find({})
+    .then((users) => res.status(200).send({ data: users }))
+    .catch(next);
+};
 
-export const getUserById = (req: Request, res: Response) => User.findById(req.params.userId)
-  .orFail()
-  .then((user) => {
-    res.status(200).send({ data: user });
-  })
-  .catch((err) => {
-    if (err instanceof mongoose.Error.DocumentNotFoundError) {
-      res.status(404).send({ message: 'Пользователь с указанным _id не найден' });
-    } else if (err instanceof mongoose.Error.CastError) {
-      res.status(400).send({ message: 'Переданы некорректные данные' });
-    }
-    return res.status(500).send({ message: `Произошла ошибка: ${err}` });
-  });
+export const getUserById = (req: Request, res: Response, next: NextFunction) => {
+  User.findById(req.params.userId)
+    .orFail(new NotFoundError('Пользователь с указанным _id не найден'))
+    .then((user) => res.status(200).send({ data: user }))
+    .catch(next);
+};
 
-export const createUser = (req: Request, res: Response) => {
+export const createUser = (req: Request, res: Response, next: NextFunction) => {
   const { name, about, avatar, email, password } = req.body;
-  return bcrypt.hash(password, 10)
+  bcrypt.hash(password, 10)
     .then((hash) => User.create({ name, about, avatar, email, password: hash }))
     .then((user) => res.status(201).send({ email: user.email, id: user._id }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя' });
+        next(new InvalidDataError('Переданы некорректные данные при создании пользователя'));
+      } else if (err.code === 11000) {
+        next(new InvalidDataError('Пользователь с таким email уже существует'));
+      } else {
+        next(err);
       }
-      return res.status(500).send({ message: `Произошла ошибка: ${err.message}` });
     });
 };
 
-export const updateUsers = (req: IRequest, res: Response) => {
+export const updateUsers = (req: IRequest, res: Response, next: NextFunction) => {
   const { name, about } = req.body;
   const userId = req.user?._id;
-  User.findByIdAndUpdate(userId, { name, about }, { new: true, runValidators: true }).orFail()
-    .then((user) => {
-      res.status(200).send({ data: user });
-    })
+  User.findByIdAndUpdate(userId, { name, about }, { new: true, runValidators: true })
+    .orFail(() => new NotFoundError('Пользователь с указанным _id не найден'))
+    .then((user) => res.status(200).send({ data: user }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        res.status(404).send({ message: 'Пользователь с указанным _id не найден' });
-      } else if (err instanceof mongoose.Error.ValidationError
+      if (err instanceof mongoose.Error.ValidationError
         || err instanceof mongoose.Error.CastError) {
-        res.status(400).send({ message: 'Переданы некорректные данные при обновлении профиля' });
+        next(new InvalidDataError('Переданы некорректные данные при обновлении профиля'));
+      } else {
+        next(err);
       }
-      res.status(500).send({ message: `Произошла ошибка: ${err}` });
     });
 };
 
-export const updateAvatar = (req: IRequest, res: Response) => {
+export const updateAvatar = (req: IRequest, res: Response, next: NextFunction) => {
   const { avatar } = req.body;
   const userId = req.user?._id;
-  User.findByIdAndUpdate(userId, { avatar }, { new: true, runValidators: true }).orFail()
-    .then((user) => {
-      res.status(200).send({ data: user });
-    })
+  User.findByIdAndUpdate(userId, { avatar }, { new: true, runValidators: true })
+    .orFail(() => new NotFoundError('Пользователь с указанным _id не найден'))
+    .then((user) => res.status(200).send({ data: user }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        res.status(404).send({ message: 'Пользователь с указанным _id не найден' });
-      } else if (err instanceof mongoose.Error.ValidationError
+      if (err instanceof mongoose.Error.ValidationError
         || err instanceof mongoose.Error.CastError) {
-        res.status(400).send({ message: 'Переданы некорректные данные при обновлении аватара' });
+        next(new InvalidDataError('Переданы некорректные данные при обновлении аватара'));
+      } else {
+        next(err);
       }
-      res.status(500).send({ message: `Произошла ошибка: ${err}` });
     });
 };
 
-export const login = (req: Request, res: Response) => {
+export const login = (req: Request, res: Response, next: NextFunction) => {
   const { email, password } = req.body;
-
   User.findUserByCredentials(email, password)
     .then((user) => {
       const token = jwt.sign({ _id: user._id }, 'secret_code', { expiresIn: '7d' });
       res.cookie('token', token, { httpOnly: true });
       res.send({ message: 'Успешная авторизация' });
     })
-    .catch(() => {
-      res.status(401).send({ message: 'Неправильные почта или пароль' });
+    .catch(() => next(new UnauthorizedError('Неправильные почта или пароль')));
+};
+
+export const getUserInfo = (req: IRequest, res: Response, next: NextFunction) => {
+  const userId = req.user?._id;
+  User.findById(userId)
+    .orFail(() => new NotFoundError('Пользователь не найден'))
+    .then((user) => res.status(200).send({ data: user }))
+    .catch((err) => {
+      if (err instanceof mongoose.Error.CastError) {
+        next(new InvalidDataError('Переданы некорректные данные'));
+      } else {
+        next(err);
+      }
     });
 };

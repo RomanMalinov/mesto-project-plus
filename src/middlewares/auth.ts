@@ -8,7 +8,8 @@ interface AuthRequest extends Request {
 const userAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
   const { authorization } = req.headers;
   if (!authorization || !authorization.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Необходима авторизация' });;
+    res.status(401).json({ message: 'Необходима авторизация' });
+    return;
   }
   const token = authorization.replace('Bearer ', '');
 
@@ -17,7 +18,8 @@ const userAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     payload = jwt.verify(token, 'secret-key');
   } catch (error) {
-    return res.status(401).json({ message: 'Авторизуйтесь для выполнения запроса' });
+    res.status(401).json({ message: 'Авторизуйтесь для выполнения запроса' });
+    return;
   }
   req.user = payload;
   next();
