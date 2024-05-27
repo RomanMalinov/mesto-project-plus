@@ -38,14 +38,6 @@ app.use(cardsRouter);
 app.use(errorLogger);
 app.use(errors());
 app.use(errorHandlerMiddleware);
-// app.use((err, req, res, next) => {
-//   const { statusCode = 500, message } = err;
-//   res.status(statusCode).json({
-//     message: statusCode === 500
-//       ? 'На сервере произошла ошибка'
-//       : message
-//   });
-// });
 
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Запрашиваемый ресурс не найден' });
