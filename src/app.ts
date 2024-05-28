@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import helmet from 'helmet';
 import { errors } from 'celebrate';
+import cookieParser from 'cookie-parser';
 import userRouter from './routes/user';
 import cardsRouter from './routes/card';
 import { MONGO_URL, PORT } from './constants/constants';
@@ -16,6 +17,7 @@ const app = express();
 
 app.use(helmet());
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose.connect(MONGO_URL)
   .then(() => {
@@ -38,10 +40,6 @@ app.use(cardsRouter);
 app.use(errorLogger);
 app.use(errors());
 app.use(errorHandlerMiddleware);
-
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Запрашиваемый ресурс не найден' });
-});
 
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту: ${PORT}`);

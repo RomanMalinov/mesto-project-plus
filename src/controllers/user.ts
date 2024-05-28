@@ -7,6 +7,7 @@ import { IRequest } from '../types/types';
 import NotFoundError from '../errors/NotFoundError';
 import InvalidDataError from '../errors/InvalidDataError';
 import UnauthorizedError from '../errors/UnauthorizedError';
+import DuplicateError from '../errors/DuplicateError';
 
 export const getUsers = (req: Request, res: Response, next: NextFunction) => {
   User.find({})
@@ -30,7 +31,7 @@ export const createUser = (req: Request, res: Response, next: NextFunction) => {
       if (err.name === 'ValidationError') {
         next(new InvalidDataError('Переданы некорректные данные при создании пользователя'));
       } else if (err.code === 11000) {
-        next(new InvalidDataError('Пользователь с таким email уже существует'));
+        next(new DuplicateError('Пользователь с таким email уже существует'));
       } else {
         next(err);
       }
@@ -74,8 +75,7 @@ export const login = (req: Request, res: Response, next: NextFunction) => {
   User.findUserByCredentials(email, password)
     .then((user) => {
       const token = jwt.sign({ _id: user._id }, 'secret_code', { expiresIn: '7d' });
-      res.cookie('token', token, { httpOnly: true });
-      res.send({ message: 'Успешная авторизация' });
+      res.cookie('token', token, { httpOnly: true }).send({ message: 'Успешная авторизация' });
     })
     .catch(() => next(new UnauthorizedError('Неправильные почта или пароль')));
 };

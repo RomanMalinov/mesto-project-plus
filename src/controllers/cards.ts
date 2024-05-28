@@ -4,6 +4,7 @@ import Card from '../models/card';
 import { IRequest } from '../types/types';
 import NotFoundError from '../errors/NotFoundError';
 import InvalidDataError from '../errors/InvalidDataError';
+import UnauthorizedError from '../errors/UnauthorizedError';
 
 export const getCards = (req: IRequest, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.status(200).send({ data: cards }))
@@ -11,8 +12,15 @@ export const getCards = (req: IRequest, res: Response, next: NextFunction) => Ca
 
 export const deleteCardById = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  Card.findByIdAndDelete(cardId)
+  const userId = req.user && req.user._id;
+  Card.findById(cardId)
     .orFail(() => new NotFoundError('Карточка с указанным _id не найдена'))
+    .then((card) => {
+      if (card.owner.toString() !== userId) {
+        throw new UnauthorizedError('У вас нет прав на удаление этой карточки');
+      }
+      return Card.findByIdAndDelete(cardId);
+    })
     .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
       if (err instanceof mongoose.Error.CastError) {
@@ -38,9 +46,6 @@ export const createCard = (req: IRequest, res: Response, next: NextFunction) => 
 
 export const likeCard = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  if (!mongoose.Types.ObjectId.isValid(cardId)) {
-    next(new InvalidDataError('Переданы некорректные данные для постановки лайка'));
-  }
   Card.findByIdAndUpdate(cardId, { $addToSet: { likes: req.user?._id } }, { new: true })
     .orFail(() => new NotFoundError('Передан несуществующий _id карточки'))
     .then((card) => res.status(201).send({ data: card }))
@@ -55,9 +60,6 @@ export const likeCard = (req: IRequest, res: Response, next: NextFunction) => {
 
 export const dislikeCard = (req: IRequest, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  if (!mongoose.Types.ObjectId.isValid(cardId)) {
-    throw new InvalidDataError('Переданы некорректные данные для снятия лайка');
-  }
   return Card.findByIdAndUpdate(
     cardId,
     { $pull: { likes: req.user?._id } },
