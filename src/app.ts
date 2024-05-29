@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction } from 'express';
 import mongoose from 'mongoose';
 import helmet from 'helmet';
 import { errors } from 'celebrate';
@@ -12,6 +12,7 @@ import userAuth from './middlewares/auth';
 import { requestLogger, errorLogger } from './middlewares/logger';
 import { loginValidator, userCreationValidator } from './validator/validator';
 import errorHandlerMiddleware from './middlewares/errorHandlerMiddleware';
+import NotFoundError from './errors/NotFoundError';
 
 const app = express();
 
@@ -36,6 +37,10 @@ app.use(userAuth);
 
 app.use(userRouter);
 app.use(cardsRouter);
+
+app.use('*', (next: NextFunction) => {
+  next(new NotFoundError('Запрашиваемый ресурс не найден'));
+});
 
 app.use(errorLogger);
 app.use(errors());

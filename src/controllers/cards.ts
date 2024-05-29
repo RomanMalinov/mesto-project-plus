@@ -4,7 +4,7 @@ import Card from '../models/card';
 import { IRequest } from '../types/types';
 import NotFoundError from '../errors/NotFoundError';
 import InvalidDataError from '../errors/InvalidDataError';
-import UnauthorizedError from '../errors/UnauthorizedError';
+import ForbiddenError from '../errors/ForbiddenError';
 
 export const getCards = (req: IRequest, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.status(200).send({ data: cards }))
@@ -17,7 +17,7 @@ export const deleteCardById = (req: IRequest, res: Response, next: NextFunction)
     .orFail(() => new NotFoundError('Карточка с указанным _id не найдена'))
     .then((card) => {
       if (card.owner.toString() !== userId) {
-        throw new UnauthorizedError('У вас нет прав на удаление этой карточки');
+        throw new ForbiddenError('У вас нет прав на удаление этой карточки');
       }
       return Card.findByIdAndDelete(cardId);
     })
